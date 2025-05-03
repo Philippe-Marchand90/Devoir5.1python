@@ -1,47 +1,52 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from euler_explicite import euler_explicite
-from schema import construire_systeme
+from schema import schema
 
-# Paramètres du problème
-L = 1.0
-sigma = 0.01
-n = 20
-h_espace = L / n
-x_vals = np.linspace(h_espace, L - h_espace, n - 1)
+def main():
+    sigma = 1.0
+    L     = 1.0
+    h     = 1/10
+    f     = lambda x: np.sin(np.pi * x)
 
-# Condition initiale
-f = lambda x: np.sin(np.pi * x)
-y0 = f(x_vals)
+    # on trace pour τ=0.01 puis τ=0.001
+    for tau in [0.01, 0.001]:
+        K = int(1.0 / tau)           # pour atteindre t=1
+        W = schema(sigma, L, f, h, tau, K)
 
-# Discrétisation en temps
-t0 = 0
-tf = 1
-tau = 0.001
+        # construction du vecteur x de 0 à L (incluant les extrémités)
+        n = int(round(L / h))
+        x = np.linspace(0, L, n+1)
 
-# Construction du système et résolution
-F = construire_systeme(n, sigma, L)
-t_vals, y_vals = euler_explicite(F, t0, y0, tau, tf)
+        # indices correspondant à t = 0, 0.05, 0.1 et 1
+        t_indices = [
+            0,
+            int(0.05 / tau),
+            int(0.1  / tau),
+            int(1.0  / tau)
+        ]
 
-# Première figure : début, milieu, fin
-plt.figure()
-plt.plot(x_vals, y_vals[:, 0], label='t = 0')
-plt.plot(x_vals, y_vals[:, len(t_vals)//2], label=f't = {t_vals[len(t_vals)//2]:.2f}')
-plt.plot(x_vals, y_vals[:, -1], label=f't = {t_vals[-1]:.2f}')
-plt.xlabel('x')
-plt.ylabel('Température u(x,t)')
-plt.title('Évolution de la température (3 temps)')
-plt.legend()
-plt.grid(True)
-plt.show()
+        plt.figure()
 
-# Deuxième figure : plusieurs temps
-plt.figure()
-for i in range(0, len(t_vals), max(1, len(t_vals)//10)):
-    plt.plot(x_vals, y_vals[:, i], label=f"t = {t_vals[i]:.2f}")
-plt.xlabel('x')
-plt.ylabel('Température u(x,t)')
-plt.title('Température à différents temps')
-plt.legend()
-plt.grid(True)
-plt.show()
+        # approximation numérique
+        for idx in t_indices:
+            t = idx * tau
+            u = np.zeros(n+1)
+            u[1:-1] = W[:, idx]
+            plt.plot(x, u, label=f"approx et t={t:g}")
+
+        # solution exacte u(x,t) = e^{-π²t} sin(πx)
+        for idx in t_indices:
+            t = idx * tau
+            u_ex = np.exp(-np.pi**2 * t) * np.sin(np.pi * x)
+            plt.plot(x, u_ex, label=f"exa et t={t:g}")
+
+        plt.xlabel("x")
+        plt.ylabel("u")
+        plt.title(f"Température pour tau={tau}")
+        plt.legend()
+
+    # affiche les deux figures
+    plt.show()
+
+if __name__ == "__main__":
+    main()
