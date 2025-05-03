@@ -1,40 +1,38 @@
 import numpy as np
-
+from euler_explicite import euler_explicite
 
 def schema(sigma, L, f, h, tau, K):
     """
-    Schéma en différences finies + Euler explicite « à la main »
-    pour u_t = σ u_xx sur [0,L], u(0)=u(L)=0.
+    Schéma en différences finies + Euler explicite
+    pour u_t = σ u_xx sur [0,L] avec u(0)=u(L)=0.
 
-    Renvoie W de forme (n-1, K+1) avec W[:,k] = u^k aux points intérieurs.
+    Renvoie W de forme (n-1, K+1) où chaque colonne k est U^k.
     """
     # nombre de sous-intervalles spatiaux
     n = int(round(L / h))
 
-    # points intérieurs x_j = j*h, j=1…n-1
+    # Construction de la matrice tridiagonale A_h
+    factor = sigma / h**2
+    A_h = np.zeros((n-1, n-1))
+    for i in range(n-1):
+        A_h[i, i] = -2 * factor
+        if i > 0:
+            A_h[i, i-1] = factor
+        if i < n-2:
+            A_h[i, i+1] = factor
+
+    # Définition de F(t, U) = A_h @ U
+    def F(t, U):
+        return A_h @ U
+
+    # Condition initiale U^0 = [f(h), f(2h), …, f((n-1)h)]
     x_int = np.linspace(h, L-h, n-1)
-    U = f(x_int)               # U^0
-    W = np.zeros((n-1, K+1))
-    W[:, 0] = U.copy()
+    U0 = f(x_int)
 
-    # coefficient de diffusion numérique
-    mu = sigma * tau / h**2
+    # On intègre de t0=0 à tf = K*tau avec pas h = tau
+    t0 = 0.0
+    tf = K * tau
+    t_vals, W = euler_explicite(F, t0=t0, y0=U0, h=tau, tf=tf)
 
-    for k in range(K):
-        U_new = np.zeros_like(U)
-
-        # j = 1 (U[0]) avec u(0)=0
-        U_new[0] = U[0] + mu*(U[1] - 2*U[0] + 0)
-
-        # j = 2…n-2 (U[1]…U[n-3])
-        for j in range(1, n-2):
-            U_new[j] = U[j] + mu*(U[j+1] - 2*U[j] + U[j-1])
-
-        # j = n-1 (U[n-2]) avec u(L)=0
-        U_new[-1] = U[-1] + mu*(0 - 2*U[-1] + U[-2])
-
-        # sauvegarde et avance
-        W[:, k+1] = U_new
-        U = U_new
-
+    # W est de taille (n-1)×(K+1) : W[:, k] = U^k
     return W
