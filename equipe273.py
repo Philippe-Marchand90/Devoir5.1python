@@ -8,8 +8,8 @@ def main():
     h     = 1/10
     f     = lambda x: np.sin(np.pi * x)
 
-    # on trace pour τ=0.01 puis τ=0.001
-    for tau in [0.01, 0.001]:
+    # on trace d’abord τ=0.001 (stable) puis τ=0.01 (instable)
+    for tau in [0.001, 0.01]:
         K = int(1.0 / tau)           # pour atteindre t=1
         W = schema(sigma, L, f, h, tau, K)
 
@@ -43,9 +43,11 @@ def main():
         plt.xlabel("x")
         plt.ylabel("u")
         plt.title(f"Température pour tau={tau}")
+        # si le schéma est stable (τ≤0.005), on verrouille l’axe Y
+        if tau <= 0.005:
+            plt.ylim(0, 1)
         plt.legend()
 
-    # affiche les deux figures
     plt.show()
 
 if __name__ == "__main__":
