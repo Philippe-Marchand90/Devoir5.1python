@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def euler_explicite(F,t0,y0,h,tf):
  
     t_vals = np.arange(t0, tf + h, h)
