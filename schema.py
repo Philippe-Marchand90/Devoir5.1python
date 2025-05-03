@@ -1,42 +1,42 @@
-# schema.py
 import numpy as np
 from euler_explicite import euler_explicite
 
 def schema(sigma, L, f, h, tau, K):
     """
-    Schéma en différences finies + Euler explicite via euler_explicite.
-    u_t = σ u_xx sur [0,L], u(0)=u(L)=0.
-    Renvoie W de shape ((n-1) × (K+1)), W[:,k] = U^k.
-    """
-    # 1) Maillage spatial
-    n = int(round(L / h))               # nombre de sous‐intervalles
-    x_int = np.linspace(h, L - h, n - 1)
+    Schéma par différences finies + Euler explicite
+    via euler_explicite, mais en forçant l'étape
+    directe « à la main » pour garder exactement
+    la même erreur machine que votre version stable.
 
-    # 2) Condition initiale
+    Renvoie W shape = ((n-1) × (K+1)), W[:,k] = U^k
+    """
+
+    # maillage spatial
+    n = int(round(L / h))
+    x_int = np.linspace(h, L - h, n-1)
+
+    # condition initiale
     U0 = f(x_int)
 
-    # 3) Amorcer le mode instable (haute fréquence) si τ > h²/(2σ)
-    if tau > h**2 / (2 * sigma):
-        # mode m = n-1 → sin((n-1)π x/L)
-        seed = np.sin((n - 1) * np.pi * x_int / L)
-        eps = 4e-18   # petit amplitude pour obtenir ≃2e29 au pas K
-        U0 = U0 + eps * seed
+    # coefficient numérique
+    mu = sigma * tau / h**2
 
-    # 4) Construction de A_h = (σ/h²) * tridiagonale [-2,1,1]
-    factor = sigma / h**2
-    A_h = np.zeros((n - 1, n - 1))
-    for i in range(n - 1):
-        A_h[i, i] = -2 * factor
-        if i > 0:
-            A_h[i, i - 1] = factor
-        if i < n - 2:
-            A_h[i, i + 1] = factor
-
-    # 5) Définition F(t,U) = A_h @ U
+    # on définit F(t,U) telle que Euler explicite
+    # réalise exactement U_new = U + mu*(U_{j+1}-2U_j+U_{j-1})
     def F(t, U):
-        return A_h @ U
+        U_new = np.empty_like(U)
+        # bord gauche j=1
+        U_new[0] = U[0] + mu*(U[1] - 2*U[0] + 0)
+        # points intérieurs
+        for j in range(1, n-2):
+            U_new[j] = U[j] + mu*(U[j+1] - 2*U[j] + U[j-1])
+        # bord droit j=n-1
+        U_new[-1] = U[-1] + mu*(0 - 2*U[-1] + U[-2])
+        # on renvoie le taux de variation d'U pour que
+        # y_{k+1} = y_k + tau * F = U_new
+        return (U_new - U) / tau
 
-    # 6) Appel à euler_explicite
+    # appel à euler_explicite : on obtient t_vals et W
     t0 = 0.0
     tf = K * tau
     t_vals, W = euler_explicite(F, t0, U0, tau, tf)
